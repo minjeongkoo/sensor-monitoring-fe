@@ -1,34 +1,42 @@
 <template>
-  <div ref="container" class="lidar-container"></div>
+  <div ref="container" style="width: 100%; height: 100vh;"></div>
 </template>
 
 <script>
 import * as THREE from 'three'
-import { io } from "socket.io-client"
+import { io } from 'socket.io-client'
 
 export default {
   name: 'HomeView',
   data() {
     return {
       socket: null,
-      pointsMesh: null // <- OK (나중에 직접 할당)
+      renderer: null,
+      scene: null,
+      camera: null,
+      pointsMesh: null,
     }
   },
   mounted() {
-    // Three.js 관련 객체는 this에 직접 저장
-    this.scene = new THREE.Scene()
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-    this.renderer = new THREE.WebGLRenderer({ antialias: true })
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
-    this.$refs.container.appendChild(this.renderer.domElement)
-
-    this.initScene()
-    this.animate()
+    this.initThree()
     this.initSocket()
+    this.animate()
   },
   methods: {
-    initScene() {
-      this.camera.position.set(0, 0, 100)
+    initThree() {
+      this.scene = new THREE.Scene()
+      this.camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      )
+      this.camera.position.z = 100
+
+      this.renderer = new THREE.WebGLRenderer({ antialias: true })
+      this.renderer.setSize(window.innerWidth, window.innerHeight)
+      this.$refs.container.appendChild(this.renderer.domElement)
+
       this.scene.add(new THREE.GridHelper(200, 20))
       this.scene.add(new THREE.AxesHelper(100))
     },
@@ -38,17 +46,23 @@ export default {
     },
     initSocket() {
       this.socket = io('http://localhost:3000')
-      this.socket.on('lidar-points', (points) => {
-        if (!Array.isArray(points)) return
 
+      this.socket.on('connect', () => {
+        console.log('[WebSocket] Connected')
+      })
+
+      this.socket.on('lidar-points', (points) => {
+        if (!Array.isArray(points) || points.length === 0) return
+
+        const geometry = new THREE.BufferGeometry()
         const vertices = new Float32Array(points.length * 3)
+
         for (let i = 0; i < points.length; i++) {
-          vertices[i * 3 + 0] = points[i].x
+          vertices[i * 3] = points[i].x
           vertices[i * 3 + 1] = points[i].y
           vertices[i * 3 + 2] = points[i].z
         }
 
-        const geometry = new THREE.BufferGeometry()
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
         const material = new THREE.PointsMaterial({ color: 0xff44aa, size: 2 })
 
@@ -65,11 +79,7 @@ export default {
 </script>
 
 <style scoped>
-.lidar-container {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
+canvas {
+  display: block;
 }
 </style>
