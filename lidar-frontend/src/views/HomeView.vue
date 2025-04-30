@@ -4,6 +4,7 @@
 
 <script>
 import * as THREE from 'three'
+import { io } from "socket.io-client"
 
 export default {
   name: 'HomeView',
@@ -40,30 +41,34 @@ export default {
       this.renderer.render(this.scene, this.camera)
     },
     initSocket() {
-      this.socket = new WebSocket('ws://localhost:3000')
-      this.socket.addEventListener('message', (event) => {
-        const points = JSON.parse(event.data)
-        if (!Array.isArray(points)) return
+      this.socket = io("http://localhost:3000");
 
-        const vertices = new Float32Array(points.length * 3)
+      this.socket.on("connect", () => {
+        console.log("WebSocket connected");
+      });
+
+      this.socket.on("lidar-points", (points) => {
+        if (!Array.isArray(points)) return;
+
+        const vertices = new Float32Array(points.length * 3);
         for (let i = 0; i < points.length; i++) {
-          vertices[i * 3 + 0] = points[i].x
-          vertices[i * 3 + 1] = points[i].y
-          vertices[i * 3 + 2] = points[i].z
+          vertices[i * 3 + 0] = points[i].x;
+          vertices[i * 3 + 1] = points[i].y;
+          vertices[i * 3 + 2] = points[i].z;
         }
 
-        const geometry = new THREE.BufferGeometry()
-        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
 
-        const material = new THREE.PointsMaterial({ color: 0xff44aa, size: 2 })
+        const material = new THREE.PointsMaterial({ color: 0xff44aa, size: 2 });
 
         if (this.pointsMesh) {
-          this.scene.remove(this.pointsMesh)
+          this.scene.remove(this.pointsMesh);
         }
 
-        this.pointsMesh = new THREE.Points(geometry, material)
-        this.scene.add(this.pointsMesh)
-      })
+        this.pointsMesh = new THREE.Points(geometry, material);
+        this.scene.add(this.pointsMesh);
+      });
     }
   }
 }
